@@ -12,8 +12,8 @@ Most of the requirements of this project are standard Python packages and the CU
 
 ### Requirements:
 - Python >= 3.10
-- PyTorch >= 1.12.0 (ours: CUDA 11.0)
-- torchvision >= 0.14 (ours: CUDA 11.0)
+- PyTorch >= 1.12.0 (+ CUDA 11.0)
+- torchvision >= 0.14 (+ CUDA 11.0)
 - matplotlib
 - time
 - os
