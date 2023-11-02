@@ -20,9 +20,9 @@ Most of the requirements of this project are standard Python packages and the CU
 - numpy
 - numbers
 
-## Evaluation
+## Reproduction of the results
 
-To evaluate the results reported in our paper, run firstly the script ['main.py']. The full training time may take several hours, but it could be shortened by reducing the number of repetitions (line 13) from 5 to 1. The training results and the trained models are stored in the directory ['results'], with a proper timestamp. 
+To reproduce the results reported in our paper, run firstly the script ['main.py']. The full training time may take several hours, but it could be shortened by reducing the number of repetitions (line 13) from 5 to 1. The training results and the trained models are stored in the directory ['results'], with a proper timestamp. 
 
 The training results could be visualized using the script ['analyze_results.py']. In line 5 of the script, it is necessary to select a timestamp pointing to the right folder with the results. The produced graphs will be saved in the directory ['figures'], with the same timestamp. 
 
