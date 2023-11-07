@@ -30,4 +30,4 @@ The training results could be visualized using the script ['analyze_results.py']
 
 We welcome you to contact us (e-mail: ```p.g.krasnowski@gmail.com```) if you have any problem when reading the paper or reproducing the code.
 
-## Acknowledgment
+## Acknowledgement
