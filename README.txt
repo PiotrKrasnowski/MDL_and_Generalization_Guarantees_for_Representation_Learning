@@ -33,7 +33,8 @@ The code is tested with Python 3.10.0 on Linux. Please see requirements.txt.
 
 #######################
 # Running experiments #
-#######################  
+#######################
+ Create three empty folders named 'datastes', 'results', 'figures'.
  Download MNIST data from: http://yann.lecun.com/exdb/mnist/ or CIFAR10 data from https://www.cs.toronto.edu/~kriz/cifar.html.
  Extract the files and place under the right folder in the directory datasets/ .
  To reproduce results in the paper: 
