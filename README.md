@@ -31,3 +31,4 @@ The training results could be visualized using the script ['analyze_results.py']
 We welcome you to contact us (e-mail: ```p.g.krasnowski@gmail.com```) if you have any problem when reading the paper or reproducing the code.
 
 ## Acknowledgement
+This code is based on the Variation Information Bottleneck (VIB) implementation of [https://github.com/1Konny/VIB-pytorch.git](https://github.com/1Konny/VIB-pytorch.git). The code, however, has been modified by us substantially.
