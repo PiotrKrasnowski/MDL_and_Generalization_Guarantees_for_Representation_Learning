@@ -38,7 +38,7 @@ class Solver(object):
     
         # CDVIB parameters
         self.M       = args["centers_num"] 
-        self.moving_coefficient_multiple = args["mov_coeff_mul"]
+        self.moving_coefficient_multiple     = args["mov_coeff_mul"]
         self.moving_mean_multiple_tensor     = cuda(torch.zeros(10*self.M,self.K),self.cuda)
         self.moving_variance_multiple_tensor = cuda(torch.ones(10*self.M,self.K),self.cuda)
 
@@ -127,7 +127,177 @@ class Solver(object):
                 self.moving_variance_multiple_tensor *= (1 - self.moving_coefficient_multiple * self.M * center_count.unsqueeze(1).repeat(1,self.K))
                 self.moving_mean_multiple_tensor     += self.moving_coefficient_multiple * self.M * center_mean_batch
                 self.moving_variance_multiple_tensor += self.moving_coefficient_multiple * self.M * center_var_batch
+            '''  
+
+            info_loss = cuda(torch.tensor(0.0),self.cuda)                 
+            indY1 = (y.repeat(10,1)==cuda(torch.tensor(np.arange(10)),self.cuda).unsqueeze(1)).type(torch.float)
+            # indY2 = torch.norm((self.moving_mean_multiple_tensor.view(1,10*self.M,self.K)+(1-indY1.repeat(self.K,self.M,1).permute(2,1,0))*1e8)-mu.view(mu.size(0),1,self.K),dim=2).argmin(dim=1)
+            # indY2 = (
+            #         #  -2*std.log().sum(1).view(1,mu.size(0)) + 
+            #          (self.moving_variance_multiple_tensor.log()).sum(1).view(10*self.M,1)
+            #          +((mu.view(1,mu.size(0),self.K)+(1-indY1.repeat(self.K,self.M,1).permute(1,2,0))*1e8-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum(2)
+            #          +(std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps)).sum(2)
+            #          ).argmin(dim=0)
             
+            # SumTemp = torch.norm(self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)-mu.view(1,mu.size(0),self.K),dim=2)*indY1.repeat(self.M,1)
+            # SumTemp = (((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum(2))*indY1.repeat(self.M,1)
+            
+
+            varOfMean = ((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))
+            SumTemp = (
+                     (self.moving_variance_multiple_tensor.log()).sum(1).view(10*self.M,1)
+                     #+((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/varOfMean).sum(2)
+                     +((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)).sum(2) # wrong loine
+                     +(std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps)).sum(2)
+                     )*indY1.repeat(self.M,1)
+
+          
+            indY2 = (SumTemp/SumTemp.sum(0).repeat(10*self.M,1) + 0.1/self.M * cuda(torch.randn(10*self.M,mu.size(0)),self.cuda)+(1-indY1.repeat(self.M,1))*1e4).argmin(dim=0)
+
+
+            indY = (indY2.repeat(10*self.M,1)==cuda(torch.tensor(np.arange(10*self.M)),self.cuda).unsqueeze(1)).type(torch.float)
+            aIndY=indY.repeat(self.K,1,1).permute(1,2,0)
+
+
+            cc = indY.sum(1)
+            coeff_efective = self.moving_coefficient_multiple * self.M * cc 
+
+            if self.mode == 'train':
+                self.moving_mean_multiple_tensor = self.moving_coefficient_multiple * self.M * torch.matmul(indY,mu).detach()+(1-coeff_efective.unsqueeze(1))*self.moving_mean_multiple_tensor
+                tempDif = 0*((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum(1)
+                self.moving_variance_multiple_tensor= self.moving_coefficient_multiple * self.M * (tempDif.detach() + torch.matmul(indY,std.pow(2)).detach())+(1-coeff_efective.unsqueeze(1))*self.moving_variance_multiple_tensor
+                
+                # self.moving_mean_multiple_tensor = self.moving_mean_multiple_tensor.data
+                # self.moving_variance_multiple_tensor = self.moving_variance_multiple_tensor.data
+                # self.moving_mean_multiple_tensor = self.moving_coefficient_multiple * self.M * torch.matmul(indY,mu)+(1-coeff_efective.unsqueeze(1))*self.moving_mean_multiple_tensor
+                # tempDif = ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum(1)
+                # self.moving_variance_multiple_tensor= self.moving_coefficient_multiple * self.M * (tempDif + torch.matmul(indY,std.pow(2)))+(1-coeff_efective.unsqueeze(1))*self.moving_variance_multiple_tensor
+                
+               
+            
+            if self.moving_mean_multiple_tensor[0,0].isnan():
+                heretemp =1 
+            
+            
+            info_loss  = -1 * 0.5*(1+2*std.log()).sum()
+            info_loss +=  0.5 * (cc.unsqueeze(1)*self.moving_variance_multiple_tensor.log()).sum()
+            #info_loss +=  0.5 * ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum()
+            info_loss +=  0.5 * ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum() # wrong line
+            info_loss +=  0.5 * (((std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps))*aIndY)).sum()
+            info_loss = info_loss.div(math.log(2))
+
+        elif idx == 3:   # lossless CDVIB
+            info_loss = cuda(torch.tensor(0.0),self.cuda)                 
+            indY1 = (y.repeat(10,1)==cuda(torch.tensor(np.arange(10)),self.cuda).unsqueeze(1)).type(torch.float)
+            # indY2 = torch.norm((self.moving_mean_multiple_tensor.view(1,10*self.M,self.K)+(1-indY1.repeat(self.K,self.M,1).permute(2,1,0))*1e8)-mu.view(mu.size(0),1,self.K),dim=2).argmin(dim=1)
+            # indY2 = (
+            #         #  -2*std.log().sum(1).view(1,mu.size(0)) + 
+            #          (self.moving_variance_multiple_tensor.log()).sum(1).view(10*self.M,1)
+            #          +((mu.view(1,mu.size(0),self.K)+(1-indY1.repeat(self.K,self.M,1).permute(1,2,0))*1e8-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum(2)
+            #          +(std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps)).sum(2)
+            #          ).argmin(dim=0)
+            
+            # SumTemp = torch.norm(self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)-mu.view(1,mu.size(0),self.K),dim=2)*indY1.repeat(self.M,1)
+            # SumTemp = (((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum(2))*indY1.repeat(self.M,1)
+            
+
+            varOfMean = ((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))
+            SumTemp = (
+                     (self.moving_variance_multiple_tensor.log()).sum(1).view(10*self.M,1)
+                     +((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)/varOfMean).sum(2)
+                     #+((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K)).pow(2)).sum(2) # wrong loine
+                     +(std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps)).sum(2)
+                     )*indY1.repeat(self.M,1)
+
+          
+            indY2 = (SumTemp/SumTemp.sum(0).repeat(10*self.M,1) + 0.1/self.M * cuda(torch.randn(10*self.M,mu.size(0)),self.cuda)+(1-indY1.repeat(self.M,1))*1e4).argmin(dim=0)
+
+
+            indY = (indY2.repeat(10*self.M,1)==cuda(torch.tensor(np.arange(10*self.M)),self.cuda).unsqueeze(1)).type(torch.float)
+            aIndY=indY.repeat(self.K,1,1).permute(1,2,0)
+
+
+            cc = indY.sum(1)
+            coeff_efective = self.moving_coefficient_multiple * self.M * cc 
+
+            if self.mode == 'train':
+                self.moving_mean_multiple_tensor = self.moving_coefficient_multiple * self.M * torch.matmul(indY,mu).detach()+(1-coeff_efective.unsqueeze(1))*self.moving_mean_multiple_tensor
+                tempDif = 0*((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum(1)
+                self.moving_variance_multiple_tensor= self.moving_coefficient_multiple * self.M * (tempDif.detach() + torch.matmul(indY,std.pow(2)).detach())+(1-coeff_efective.unsqueeze(1))*self.moving_variance_multiple_tensor
+                
+                # self.moving_mean_multiple_tensor = self.moving_mean_multiple_tensor.data
+                # self.moving_variance_multiple_tensor = self.moving_variance_multiple_tensor.data
+                # self.moving_mean_multiple_tensor = self.moving_coefficient_multiple * self.M * torch.matmul(indY,mu)+(1-coeff_efective.unsqueeze(1))*self.moving_mean_multiple_tensor
+                # tempDif = ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum(1)
+                # self.moving_variance_multiple_tensor= self.moving_coefficient_multiple * self.M * (tempDif + torch.matmul(indY,std.pow(2)))+(1-coeff_efective.unsqueeze(1))*self.moving_variance_multiple_tensor
+                
+               
+            
+            if self.moving_mean_multiple_tensor[0,0].isnan():
+                heretemp =1 
+            
+            
+            info_loss  = -1 * 0.5*(1+2*std.log()).sum()
+            info_loss +=  0.5 * (cc.unsqueeze(1)*self.moving_variance_multiple_tensor.log()).sum()
+            info_loss +=  0.5 * ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,mu.size(0),1))).sum()
+            #info_loss +=  0.5 * ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)).sum() # wrong line
+            info_loss +=  0.5 * (((std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps))*aIndY)).sum()
+            info_loss = info_loss.div(math.log(2))
+            '''  
+            '''
+            # select closest centers
+            
+            centers_mean_label = self.moving_mean_multiple_tensor.view(10,self.M,self.K)[y,:,:] # size [B, M, K]
+            centers_var_label  = self.moving_variance_multiple_tensor.view(10,self.M,self.K)[y,:,:] # size [B, M, K]
+            centers_selected_ind  = (centers_var_label.log() \
+                                    + (centers_mean_label-mu.unsqueeze(1).repeat(1,self.M,1)).pow(2)/(centers_var_label+self.eps) \
+                                    + std.pow(2).unsqueeze(1).repeat(1,self.M,1)/(centers_var_label+self.eps)).sum(2).argmin(dim=1) \
+                                    + y*self.M # size [B]
+            center_mean_selected = self.moving_mean_multiple_tensor[centers_selected_ind,:] # size [B, K]
+            center_var_selected  = self.moving_variance_multiple_tensor[centers_selected_ind,:] # size [B, K]
+ 
+            # info loss
+            info_loss = (- 0.5*(1+2*std.log()) \
+                        + 0.5 * center_var_selected.log() \
+                        + 0.5 * (center_mean_selected-mu).pow(2)/(center_var_selected+self.eps) \
+                        + 0.5 * std.pow(2)/(center_var_selected+self.eps)).sum().div(math.log(2)) # size [1]
+
+            # update centers
+            if self.mode == 'train':
+                centers_selected_hot_encoding = torch.nn.functional.one_hot(centers_selected_ind,10*self.M).type(torch.float).detach() # size [B,C*M]
+                center_count = centers_selected_hot_encoding.sum(0)
+                center_mean_batch = torch.matmul(centers_selected_hot_encoding.transpose(0,1), mu).detach()         # size [C*M,K] 
+                center_var_batch  = torch.matmul(centers_selected_hot_encoding.transpose(0,1), std.pow(2)).detach() # size [C*M,K]
+
+                self.moving_mean_multiple_tensor     *= (1 - self.moving_coefficient_multiple * self.M * center_count.unsqueeze(1).repeat(1,self.K))
+                self.moving_variance_multiple_tensor *= (1 - self.moving_coefficient_multiple * self.M * center_count.unsqueeze(1).repeat(1,self.K))
+                self.moving_mean_multiple_tensor     += self.moving_coefficient_multiple * self.M * center_mean_batch
+                self.moving_variance_multiple_tensor += self.moving_coefficient_multiple * self.M * center_var_batch
+            '''
+            '''
+            info_loss = cuda(torch.tensor(0.0),self.cuda)                 
+            indY1 = (y.repeat(10,1)==cuda(torch.tensor(np.arange(10)),self.cuda).unsqueeze(1)).type(torch.float)
+            indY2 = torch.norm((self.moving_mean_multiple_tensor.view(1,10*self.M,self.K)+(1-indY1.repeat(self.K,self.M,1).permute(2,1,0))*1e8)-mu.view(mu.size(0),1,self.K),dim=2).argmin(dim=1)
+
+            indY = (indY2.repeat(10*self.M,1)==cuda(torch.tensor(np.arange(10*self.M)),self.cuda).unsqueeze(1)).type(torch.float)
+
+            cc = indY.sum(1)
+            coeff_efective = self.moving_coefficient_multiple * self.M * cc 
+
+            if self.mode == 'train':
+                self.moving_mean_multiple_tensor = self.moving_coefficient_multiple * self.M * torch.matmul(indY,mu).detach()+(1-coeff_efective.unsqueeze(1))*self.moving_mean_multiple_tensor
+                self.moving_variance_multiple_tensor= self.moving_coefficient_multiple * self.M * torch.matmul(indY,std.pow(2)).detach()+(1-coeff_efective.unsqueeze(1))*self.moving_variance_multiple_tensor
+
+            aIndY=indY.repeat(self.K,1,1).permute(1,2,0)
+
+            info_loss  = -1 * 0.5*(1+2*std.log()).sum()
+            info_loss +=  0.5 * (cc.unsqueeze(1)*self.moving_variance_multiple_tensor.log()).sum()
+            info_loss +=  0.5 * ((((mu.view(1,mu.size(0),self.K)-self.moving_mean_multiple_tensor.view(10*self.M,1,self.K))*aIndY)).pow(2)/((self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps).repeat(1,128,1))).sum()
+            info_loss +=  0.5 * (((std.view(1,std.size(0),self.K).pow(2)/(self.moving_variance_multiple_tensor.view(10*self.M,1,self.K)+self.eps))*aIndY)).sum()
+            info_loss = info_loss.div(math.log(2))
+            '''
+
+
         if reduction == 'sum':
             return info_loss
         elif reduction == 'mean':
@@ -207,7 +377,7 @@ class Solver(object):
         random.seed(self.seed)
         # train
         for alpha in self.alpha:
-            print('K:{}, Beta:{:.0e}, Correlation:{:,.3f}, Loss ID:{}, Alpha:{:,.3f}'.format(self.K,self.beta,self.corr,self.loss_id,alpha))
+            print('K:{}, Beta:{:.0e}, Loss ID:{}, Alpha:{:,.3f}'.format(self.K,self.beta,self.loss_id,alpha))
             # re-initialize schedulers
             self.optim     = optim.Adam(self.IBnet.parameters(),lr=self.lr,betas=(0.5,0.999))
             self.scheduler = lr_scheduler.ExponentialLR(self.optim,gamma=0.97)
