@@ -10,15 +10,15 @@ import time
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 global_parameters = {
-    "repetitions":   5,                          # total number of repetitions
-    "beta":          np.logspace(1e-7, 1e2, 17), # regularization parameter
-    "loss_id":       [0,1,2,3],                  # 0 - no regularizarion, 1 - VIB with standard Gaussian prior,
-                                                 # 2 - lossless CDVIB (ours), 3 - lossy CDVIB (ours)
-    "centers_num":   [1,5,10],                   # number of centers in loss 2 and loss 3
-    "mov_coeff_mul": [1e-4],                     # coefficient for smooth change of prior centers in loss 2 and loss 3
-    "results_dir":   'results',                  # dir to results
-    "figures_dir":   'figures',                  # dir to figures
-    "save_model":    True                        # saves the model after training
+    "repetitions":   2,                            # total number of repetitions
+    "beta":          list(np.logspace(-7, 1, 17)), # regularization parameter
+    "loss_id":       [1,2,3],                      # 0 - no regularizarion, 1 - VIB with standard Gaussian prior,
+                                                   # 2 - lossless CDVIB (ours), 3 - lossy CDVIB (ours)
+    "centers_num":   [5],                          # number of centers in loss 2 and loss 3
+    "mov_coeff_mul": [1e-4],                       # coefficient for smooth change of prior centers in loss 2 and loss 3
+    "results_dir":   'results',                    # dir to results
+    "figures_dir":   'figures',                    # dir to figures
+    "save_model":    True                          # saves the model after training
 }
 
 
@@ -42,7 +42,6 @@ solver_parameters = {
 def main():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
-
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)
 
@@ -67,7 +66,7 @@ def main():
                         solver_parameters["loss_id"]       = loss_id
                         solver_parameters["mov_coeff_mul"] = mov_coeff_mul
                         solver_parameters["centers_num"]   = centers_num
-
+                        
                         # create a model and train
                         net = Solver(solver_parameters)
                         net.train_full()
@@ -80,10 +79,8 @@ def main():
                                     train2_train_dataset = net.train2_train_dataset,
                                     train2_test_dataset  = net.train2_test_dataset,
                                     train1_epochs        = net.train1_epochs,
-                                    moving_average       = net.moving_mean.cpu().numpy(),
-                                    moving_variance      = net.moving_variance.cpu().numpy(),
-                                    moving_average_mul   = net.moving_mean_multiple.cpu().numpy(),
-                                    moving_variance_mul  = net.moving_variance_multiple.cpu().numpy(),
+                                    moving_average_mul   = net.moving_mean_multiple_tensor.cpu().numpy(),
+                                    moving_variance_mul  = net.moving_variance_multiple_tensor.cpu().numpy(),
                                     counter              = rep
                             )
                         
