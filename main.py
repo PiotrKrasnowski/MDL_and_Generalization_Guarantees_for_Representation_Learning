@@ -10,7 +10,7 @@ import time
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 global_parameters = {
-    "repetitions":   2,                            # total number of repetitions
+    "repetitions":   5,                            # total number of repetitions
     "beta":          list(np.logspace(-7, 1, 17)), # regularization parameter
     "loss_id":       [1,2,3],                      # 0 - no regularizarion, 1 - VIB with standard Gaussian prior,
                                                    # 2 - lossless CDVIB (ours), 3 - lossy CDVIB (ours)
