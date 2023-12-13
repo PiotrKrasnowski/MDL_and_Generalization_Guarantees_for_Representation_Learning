@@ -56,8 +56,7 @@ class IBNet(nn.Module):
         return mu + eps * std
 
     def weight_init(self):
-        for m in self._modules:
-            if m !='encode': xavier_init(self._modules[m])
+        for m in self._modules: xavier_init(self._modules[m])
 
 def xavier_init(ms):
     torch.manual_seed(0)
