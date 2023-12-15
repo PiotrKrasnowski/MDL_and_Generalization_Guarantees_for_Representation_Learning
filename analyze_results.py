@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-timestamp = '20230101-115959'
+timestamp = '20231215-112117'
 
 results_dir = 'results/results_' + timestamp + '/'
 figures_dir = 'figures/figures_' + timestamp + '/'
@@ -56,7 +56,6 @@ for file in filenames:
     train1_test_dataset  = data["train1_test_dataset"][()]
     train2_train_dataset = data["train2_train_dataset"][()]
     train2_test_dataset  = data["train2_test_dataset"][()]
-
     beta_id = global_parameters["beta"].index(solver_parameters["beta"])
     loss_id = global_parameters["loss_id"].index(solver_parameters["loss_id"])
     rptt_id = data["counter"]
@@ -112,8 +111,8 @@ for file in filenames:
 # some options
 label_format = '{:.0e}'
 plt.rcParams.update({'font.size': 12})
-Labels_Train = ['standard VIB, train', 'lossy CDVIB, train', 'lossless CDVIB, train']
-Labels_Test  = ['standard VIB', 'lossy CDVIB', 'lossless CDVIB']
+Labels_Train = ['standard VIB, train', 'lossless CDVIB, train', 'lossy CDVIB, train']
+Labels_Test  = ['standard VIB', 'lossless CDVIB', 'lossy CDVIB']
 colors_Train = [':ro', ':b^', ':gs']
 colors_Test  = ['-ro', '-b^', '-gs']
 colors_Intervals = ['r', 'b', 'g']
@@ -131,7 +130,6 @@ ax1_conf.legend()
 ax1_conf.grid()
 ax1_conf.set_title('Accuracy')
 ax1_conf.set_xscale('log')
-# plt.xlim([-0.1, 1.1])
 
 fig_conf.savefig(figures_dir + 'accuracy')
 
@@ -153,7 +151,7 @@ fig_conf.savefig(figures_dir + 'log_likelihood')
 
 fig_conf, ax3_conf = plt.subplots(1, 1)
 for loss_id in range(len(global_parameters["loss_id"])):                  
-    ax3_conf.plot(global_parameters["beta"], np.mean(log_likelihood_train_worst[loss_id,:,:], axis=1), label=Labels_Train[loss_id])
+    ax3_conf.plot(global_parameters["beta"], np.mean(log_likelihood_train_worst[loss_id,:,:], axis=1), colors_Train[loss_id], label=Labels_Train[loss_id])
     ax3_conf.plot(global_parameters["beta"], np.mean(log_likelihood_test_worst[loss_id,:,:], axis=1), colors_Test[loss_id], label=Labels_Test[loss_id])
     ax3_conf.fill_between(global_parameters["beta"], np.mean(log_likelihood_confidence_low_train_worst[loss_id,:,:], axis=1), np.mean(log_likelihood_confidence_high_train_worst[loss_id,:,:], axis=1), color=colors_Intervals[loss_id], alpha = 0.5)
     ax3_conf.fill_between(global_parameters["beta"], np.mean(log_likelihood_confidence_low_test_worst[loss_id,:,:], axis=1), np.mean(log_likelihood_confidence_high_test_worst[loss_id,:,:], axis=1), color=colors_Intervals[loss_id], alpha = 0.5)
@@ -169,7 +167,7 @@ fig_conf.savefig(figures_dir + 'log_likelihood_worst_decoder')
 
 fig_conf, ax4_conf = plt.subplots(1, 1)
 for loss_id in range(len(global_parameters["loss_id"])):                 
-    ax4_conf.plot(global_parameters["beta"], np.mean(accuracies_train_worst[loss_id,:,:], axis=1), label=Labels_Train[loss_id])
+    ax4_conf.plot(global_parameters["beta"], np.mean(accuracies_train_worst[loss_id,:,:], axis=1), colors_Train[loss_id], label=Labels_Train[loss_id])
     ax4_conf.plot(global_parameters["beta"], np.mean(accuracies_test_worst[loss_id,:,:], axis=1), colors_Test[loss_id], label=Labels_Test[loss_id])
     ax2_conf.fill_between(global_parameters["beta"], np.mean(accuracies_confidence_low_train_worst[loss_id,:,:], axis=1), np.mean(accuracies_confidence_high_train_worst[loss_id,:,:], axis=1), color=colors_Intervals[loss_id], alpha = 0.5)
     ax2_conf.fill_between(global_parameters["beta"], np.mean(accuracies_confidence_low_test_worst[loss_id,:,:], axis=1), np.mean(accuracies_confidence_high_test_worst[loss_id,:,:], axis=1), color=colors_Intervals[loss_id], alpha = 0.5)
@@ -180,6 +178,5 @@ ax4_conf.legend()
 ax4_conf.grid()
 ax4_conf.set_title('Accuracy, "worst" decoder')
 ax4_conf.set_xscale('log')
-# plt.xlim([-0.1, 1.1])
 
 fig_conf.savefig(figures_dir + 'accuracy_worst_decoder')
